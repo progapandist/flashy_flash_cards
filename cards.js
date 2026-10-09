@@ -67,10 +67,6 @@ export function planImport(deck, incoming) {
 
 export const takeProgress = (mine, from) => PROGRESS.forEach(k => mine[k] = from[k]);
 
-// Longest link we let open directly. Chromium stops at 2 MB; Firefox's cap is 1 MB.
-// Longer links still work pasted into the import field.
-export const MAX_LINK = 1_000_000;
-
 // Share codes: deflate-raw, then base64url so the code survives in a URL hash.
 // The deck goes in as columns (fronts, backs, numbers, set names, answer times) rather than one object per card,
 // and due dates count from the day of packing, so most of them are small numbers.

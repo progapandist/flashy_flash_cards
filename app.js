@@ -1,4 +1,4 @@
-import { newCard, levelText, dueText, parse, review, shuffle, planImport, takeProgress, pack, unpack, today, MAX_LINK } from './cards.js';
+import { newCard, levelText, dueText, parse, review, shuffle, planImport, takeProgress, pack, unpack, today } from './cards.js';
 
 const $ = s => document.querySelector(s);
 const state = JSON.parse(localStorage.flashy || '{"cards":[]}');
@@ -10,6 +10,9 @@ function show(tab) {
   document.querySelectorAll('section').forEach(s => s.hidden = s.id !== tab);
   if (tab === 'train') startSession();
   if (tab === 'deck') renderDeck();
+  // One share block, moved into the open tab, so Train and Deck can't drift apart.
+  const slot = $(`#${tab} .share-slot`);
+  if (slot) { slot.append($('#share-block')); updateShare(); }
 }
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.tab));
 $('h1').onclick = () => show('train'); // keyboard users have the train tab
@@ -80,7 +83,22 @@ $('#add-btn').onclick = () => addRows(false);
 $('#add-new').onclick = () => addRows(true);
 
 // Train
-let queue = [], cur = null, flipped = false, answered = []; // answered: {card, before} for each answer, newest last
+let queue = [], cur = null, flipped = false;
+
+// Every answer and skip, newest last, so ← can step back. It outlives tab switches and, per browser tab,
+// reloads (sessionStorage), so ← keeps working after the page reloads onto the same card.
+let answered = (() => {
+  try {
+    return JSON.parse(sessionStorage.flashyBack || '[]').flatMap(([front, before, skipped]) => {
+      const card = state.cards.find(c => c.front === front);
+      return card ? [{ card, before, skipped }] : [];
+    });
+  } catch { return []; }
+})();
+const remember = () => {
+  answered = answered.slice(-200);
+  try { sessionStorage.flashyBack = JSON.stringify(answered.map(a => [a.card.front, a.before, a.skipped])); } catch {}
+};
 
 // "due today" trains only cards due today or overdue; "all cards" runs the whole deck.
 const allMode = () => state.mode === 'all';
@@ -91,10 +109,10 @@ let resume = new URLSearchParams(location.search).get('card'); // the card on sc
 
 function startSession() {
   queue = shuffle(state.cards.filter(c => allMode() || c.due <= today()));
-  const i = queue.findIndex(c => c.front === resume);
+  const first = resume ?? cur?.front; // the card from before a reload, or the one on screen before a tab switch
+  const i = queue.findIndex(c => c.front === first);
   if (i > 0) queue.unshift(...queue.splice(i, 1));
   resume = null;
-  answered = [];
   next();
 }
 
@@ -136,29 +154,32 @@ function flip() { if (cur) { flipped = !flipped; render(); } }
 function grade(ok) {
   if (!cur || !flipped) return;
   answered.push({ card: cur, before: { ...cur } });
+  remember();
   review(cur, ok);
   if (!ok) queue.push(cur); // back at the end of this session
   save(); next();
 }
 
-// Back takes the last answer back: the card gets its old level and counts, and shows again, flipped.
+// Back undoes the last step. An answer is taken back (old level and counts) and its card shows again,
+// flipped; a skipped card simply comes back, unflipped.
 function back() {
-  const last = answered.pop();
+  let last;
+  do last = answered.pop(); while (last && !state.cards.includes(last.card)); // pass over cards deleted since
   if (!last) return;
   Object.assign(last.card, last.before);
-  const requeued = queue.indexOf(last.card); // "again" had put it back in the queue
-  if (requeued !== -1) queue.splice(requeued, 1);
+  const queued = queue.indexOf(last.card); // "again" or a skip had put it at the end of the queue
+  if (queued !== -1) queue.splice(queued, 1);
   if (cur && cur !== last.card) queue.unshift(cur);
   cur = last.card;
-  flipped = true;
-  save(); render();
+  flipped = !last.skipped;
+  remember(); save(); render();
 }
 
 // Skip moves an unflipped card to the end of the session. Once you've seen the answer,
 // moving on without "got it" counts as "again".
 function skip() {
   if (flipped) return grade(false);
-  if (cur && queue.length) { queue.push(cur); next(); }
+  if (cur && queue.length) { answered.push({ card: cur, before: { ...cur }, skipped: true }); remember(); queue.push(cur); next(); }
 }
 
 $('#card').onclick = $('#flip').onclick = flip;
@@ -205,17 +226,18 @@ function renderDeck() {
   updateShare();
 }
 
-// Ticked cards, or the whole deck. Without "include my progress" they go out as new cards.
-const shareCards = () => {
-  const some = state.cards.filter(c => picked.has(c));
-  const cards = some.length ? some : state.cards;
-  return $('#with-progress').checked ? cards : cards.map(c => newCard(c.front, c.back, c.set));
+// Ticked cards (only on the Deck tab), or the whole deck. Without progress they go out as new cards.
+const picks = () => $('#deck').hidden ? [] : state.cards.filter(c => picked.has(c));
+const shareCards = withProgress => {
+  const some = picks(), cards = some.length ? some : state.cards;
+  return withProgress ? cards : cards.map(c => newCard(c.front, c.back, c.set));
 };
-$('#with-progress').onchange = updateShare; // clears a link made with the other setting
 
 function updateShare() {
-  const some = state.cards.filter(c => picked.has(c)).length;
-  $('#share').textContent = some ? `copy link to ${some} selected` : `copy link to all ${state.cards.length} cards`;
+  $('#share-block').hidden = !state.cards.length; // nothing to move or share yet
+  const some = picks().length, what = some ? `copy ${some} selected` : 'copy link';
+  $('#share-progress').textContent = `${what} with my progress`;
+  $('#share-fresh').textContent = `${what} without progress`;
   $('#unselect').hidden = !some;
   $('#link').hidden = true;
   $('#share-msg').textContent = '';
@@ -270,21 +292,20 @@ function copyLink(cards, field, msg) {
   msg.textContent = 'Making a link…';
   const link = pack(cards).then(shortLink);
   // Safari only lets a click write to the clipboard if the write starts right away, so it gets the link as a promise.
-  const copied = typeof ClipboardItem === 'function'
+  const copied = (typeof ClipboardItem === 'function'
     ? navigator.clipboard.write([new ClipboardItem({ 'text/plain': link.then(l => new Blob([l], { type: 'text/plain' })) })])
-    : link.then(l => navigator.clipboard.writeText(l));
-  link.then(l => {
+    : link.then(l => navigator.clipboard.writeText(l))
+  ).then(() => true, () => false); // a refused copy just means: copy it by hand from the field
+  link.then(async l => {
     field.value = l;
     field.hidden = false;
     field.select();
-    const tooLong = l.length > MAX_LINK;
-    copied.then(
-      () => msg.textContent = tooLong ? 'Copied. Too long to open as a link: paste it into the import field instead.' : 'Copied.',
-      () => msg.textContent = 'Copy the link below.');
+    msg.textContent = await copied ? 'Copied.' : 'Copy the link below.';
   });
 }
 
-$('#share').onclick = () => copyLink(shareCards(), $('#link'), $('#share-msg'));
+$('#share-progress').onclick = () => copyLink(shareCards(true), $('#link'), $('#share-msg'));
+$('#share-fresh').onclick = () => copyLink(shareCards(false), $('#link'), $('#share-msg'));
 
 // `ref` is what follows the # in a share link: "s=<id>" for a short link, or the deck itself.
 async function importDeck(ref) {
@@ -311,7 +332,6 @@ async function importDeck(ref) {
   save(); show('train');
 }
 
-$('#import').onclick = () => importDeck($('#import-in').value.split('#').pop());
 
 function importFromHash() {
   if (location.hash.length < 2) return;

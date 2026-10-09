@@ -43,20 +43,30 @@
   </div>
   <div id="done"><p id="done-msg"></p><button id="all">practice all cards</button><button id="go-add" class="primary">add cards</button></div>
   <p class="label" id="train-note" style="margin-top:40px">“Learned”: cards you got right that aren’t due again yet · “again” brings a card back this session<span class="keys"><br>
-    Keys: space flip · 1 again · 2 got it · ← take back last answer · → skip (after flipping: again)</span></p>
+    Keys: space flip · 1 again · 2 got it · ← back (takes back an answer) · → skip (after flipping: again)</span></p>
+  <div class="share-slot"></div>
 </section>
 
 <section id="deck" hidden>
   <p id="count" class="label"></p>
   <table><tbody id="list"></tbody></table>
   <div class="row"><button id="reset">reset progress</button><button id="clear">delete all</button></div>
-  <div class="share">
-    <p class="label">Share</p>
-    <p class="n">Tick cards in the list to share only those; with none ticked, the link carries the whole deck. Drag across the boxes to tick several at once.</p>
-    <p><label><input type="checkbox" id="with-progress"> include my progress</label> <span class="n">for moving to another browser; leave it off when sharing with someone who starts fresh</span></p>
-    <div class="row"><button id="share" class="primary">copy share link</button><button id="unselect" hidden>clear selection</button><span id="share-msg" class="n"></span></div>
-    <input id="link" readonly hidden>
-    <div class="row"><input id="import-in" placeholder="Paste a share link"><button id="import">import</button></div>
+  <p class="n">Tick cards in the list to share only those; with none ticked, the links below carry the whole deck. Drag across the boxes to tick several at once.</p>
+  <div class="row"><button id="unselect" hidden>clear selection</button></div>
+  <div class="share-slot">
+    <!-- The one share block. app.js moves it into the open tab's .share-slot (Train or Deck). -->
+    <div class="share" id="share-block">
+      <p class="label">Move or share your cards</p>
+      <div class="row"><button id="share-progress" class="primary"></button>
+        <span class="n">To continue in another browser or on another device: copy this link and paste it into the address bar there.</span></div>
+      <div class="row"><button id="share-fresh"></button>
+        <span class="n">For someone else: they start from the beginning.</span></div>
+      <p class="n"><b>Open links in a real browser app</b> such as Safari, Chrome or Firefox: paste the link into its address bar.
+        Don't just tap it inside Telegram, WhatsApp or another chat app. Those open it in their own built-in browser,
+        which keeps a separate copy of the cards that you won't find in your normal browser.</p>
+      <p id="share-msg" class="n"></p>
+      <input id="link" readonly hidden>
+    </div>
   </div>
 </section>
 </main>

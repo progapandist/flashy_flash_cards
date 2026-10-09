@@ -73,4 +73,5 @@ kbd { font-family: var(--mono); font-size: 11px; opacity: .6; margin-left: 6px; 
   tbody td:last-child { grid-column: 3; grid-row: 1 / span 3; }
   #card { padding: 28px 16px; }
 }
+.share .row > .n { flex-basis: 100%; margin-top: -4px; } /* each caption sits under its button */
 .share { margin-top: 48px; padding-top: 16px; border-top: var(--rule); }

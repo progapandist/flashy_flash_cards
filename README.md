@@ -26,21 +26,23 @@ The set name is optional. Cards keep it, and Train shows it above each card from
 
 When nothing is due, "practice all anyway" runs the whole deck. Early practice counts toward "right" but leaves levels and due dates as they were.
 
-Keys: Space or Enter flips, 1 means again, 2 means got it. ← takes back your last answer and shows that card again; press it more times to go further back. → skips a card to the end of the session; after you flip it, → counts as "again". "Show translation first" reverses the cards. The address bar keeps the card you're on (`?card=…`), so a reload brings you back to it.
+Keys: Space or Enter flips, 1 means again, 2 means got it. ← takes back your last answer and shows that card again, or brings back a card you skipped; press it more times to go further back. It keeps working after a reload or a tab switch. → skips a card to the end of the session; after you flip it, → counts as "again". "Show translation first" reverses the cards. The address bar keeps the card you're on (`?card=…`), so a reload brings you back to it.
 
 **Deck.** Lists every card with its set, level, due date, and right/wrong counts. You can delete one card, reset progress, or delete everything.
 
 ## Sharing
 
-A share link is short, like `flashy.progapanda.org/#s=ENYNKCTDKov_`, whatever the deck size. The app stores the cards on the server (Cloudflare KV) under an id made from their hash, so sharing the same cards twice gives the same link. Anyone who has a link can open those cards. Opening one adds the cards you don't have yet, then opens Train. You can also paste a link into the import field on the Deck tab.
+A share link is short, like `flashy.progapanda.org/#s=ENYNKCTDKov_`, whatever the deck size. The app stores the cards on the server (Cloudflare KV) under an id made from their hash, so sharing the same cards twice gives the same link. Anyone who has a link can open those cards. Opening one (paste it into the address bar) adds the cards you don't have yet, then opens Train. Open it in a real browser app such as Safari, Chrome or Firefox. If you tap a link inside Telegram, WhatsApp or another chat app, it opens in that app's built-in browser, which keeps its own separate deck that you won't find in your normal browser. The app says this right under the share buttons.
 
 You can make one in three places:
 
 - **A set, for a class.** On the Add tab, after "detect pairs", name the set and click "copy link to these cards". You can share them without adding them to your own deck.
-- **Some cards.** On the Deck tab, tick cards and click "copy link to N selected".
-- **The whole deck.** On the Deck tab with nothing ticked.
+- **Some cards.** On the Deck tab, tick cards; the buttons change to "copy N selected…".
+- **The whole deck.** Under the card on Train, or on Deck with nothing ticked.
 
-On the Deck tab, "include my progress" decides whether the link carries levels, due dates and right/wrong counts. Tick it to move your deck to another browser; leave it off when you share with someone who hasn't practiced yet, so they start from level 0. Set links from the Add tab always start fresh. When a link with progress lands in a deck that already has some of its cards, each of those cards keeps whichever progress is newer: each card remembers when you last answered it. So you can practice on your laptop and your phone and move progress either way without losing answers. The confirm says how many cards change; their text and set stay as they are. A link without progress never touches your progress.
+The "Move or share your cards" block sits under the card on Train and at the bottom of Deck; it's the same block in both. "Copy link with my progress" carries levels, due dates and right/wrong counts: open that link in another browser or on another device to continue there. "Copy link without progress" is for someone who hasn't practiced yet; they start from level 0. On Train the links always cover the whole deck; on Deck they cover the ticked cards, if any. Set links from the Add tab always start fresh.
+
+When a link with progress lands in a deck that already has some of its cards, each of those cards keeps whichever progress is newer: each card remembers when you last answered it. So you can practice on your laptop and your phone and move progress either way without losing answers. The confirm says how many cards change; their text and set stay as they are. A link without progress never touches your progress.
 
 If the app can't reach the server, it falls back to a link that carries the cards themselves after the `#`. Those grow with the deck: about 1,400 characters for 20 cards, 6,000 for 100 and 49,000 for 1,000, too long for Telegram (4,096 characters per message) past about 65 cards. Older links in that format still open.
 
