@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flashy Flash Cards</title>
+<style>
+  /* Paper, ink, heavy rules, flat colour, no rounded corners (after tja-web). */
+  :root {
+    --paper: #edeae1; --paper-2: #e2ded3; --ink: #1d1c19; --dim: #6f6a61;
+    --red: #ab5340; --blue: #46617a; --yellow: #c2a04e; --hairline: rgba(29, 28, 25, .18);
+    --rule: 3px solid var(--ink); --hair: 1px solid var(--hairline);
+    --sans: Futura, "Century Gothic", "Avenir Next", system-ui, sans-serif;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #15151a; --paper-2: #1d1d23; --ink: #e9e6dd; --dim: #8b867c;
+      --red: #cd7357; --blue: #7fa6c6; --yellow: #cfa955; --hairline: rgba(233, 230, 221, .16); color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 var(--sans); accent-color: var(--ink); }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 12px 20px; border-bottom: var(--rule); }
+  h1 { display: flex; align-items: center; gap: 12px; margin: 0 auto 0 0; font-size: 24px; text-transform: lowercase; }
+  .marks { display: flex; align-items: center; gap: 5px; }
+  .marks i { width: 13px; height: 13px; }
+  .circle { background: var(--red); border-radius: 50%; }
+  .triangle { height: 0 !important; border: 6.5px solid transparent; border-top: 0; border-bottom: 13px solid var(--yellow); }
+  .square { background: var(--blue); }
+  main { max-width: 46rem; margin: 0 auto; padding: 28px 20px 60px; }
+  button { font: inherit; font-size: 13px; letter-spacing: .06em; text-transform: lowercase; color: var(--ink);
+    background: var(--paper); border: 2px solid var(--ink); border-radius: 0; padding: 8px 16px; cursor: pointer; }
+  button:hover { background: var(--ink); color: var(--paper); }
+  nav { display: flex; gap: 2px; }
+  nav button { border: var(--hair); color: var(--dim); }
+  nav button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .primary, #got { background: var(--ink); color: var(--paper); }
+  .primary:hover { background: var(--red); border-color: var(--red); }
+  #got { background: var(--blue); border-color: var(--blue); }
+  #again { color: var(--red); border-color: var(--red); }
+  #again:hover { background: var(--red); color: var(--paper); }
+  input, textarea { font: inherit; font-size: 16px; color: var(--ink); background: var(--paper);
+    border: 2px solid var(--ink); border-radius: 0; padding: 8px 12px; width: 100%; }
+  input[type=checkbox] { width: auto; }
+  input:focus, textarea:focus { outline: none; border-color: var(--red); }
+  :focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+  textarea { height: 14rem; resize: vertical; }
+  .label { font-size: 10px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0; }
+  .row > input { flex: 1; min-width: 12rem; }
+  table { width: 100%; border-collapse: collapse; border-top: var(--rule); }
+  td { padding: 8px 6px; border-bottom: var(--hair); vertical-align: top; overflow-wrap: anywhere; }
+  td input { border-width: 1px; padding: 4px 8px; }
+  td button { border: none; color: var(--dim); padding: 2px 8px; }
+  .n { font-family: var(--mono); font-size: 12px; color: var(--dim); white-space: nowrap; }
+  #card { margin: 12px 0 24px; padding: 48px 24px; text-align: center; cursor: pointer;
+    background: var(--paper-2); border: var(--rule); box-shadow: 6px 6px 0 var(--ink); }
+  #q { font-size: clamp(26px, 5vw, 40px); font-weight: 500; line-height: 1.15; letter-spacing: -.02em; overflow-wrap: anywhere; }
+  #a:not(:empty) { margin-top: 24px; padding-top: 20px; border-top: var(--rule); font-size: 20px; color: var(--blue); }
+  #grade { display: flex; gap: 10px; }
+  kbd { font-family: var(--mono); font-size: 11px; opacity: .6; margin-left: 6px; }
+  @media (max-width: 560px) { .n { white-space: normal; } }
+  .share { margin-top: 48px; padding-top: 16px; border-top: var(--rule); }
+</style>
+
+<header>
+  <h1><span class="marks" aria-hidden="true"><i class="circle"></i><i class="triangle"></i><i class="square"></i></span>flashy flash cards</h1>
+  <nav><button data-tab="add">add</button><button data-tab="train">train</button><button data-tab="deck">deck</button></nav>
+</header>
+
+<main>
+<section id="add" hidden>
+  <p class="label">One pair per line, foreign word first · separators — – | - ;</p>
+  <textarea id="paste" placeholder="hilfreich — полезный"></textarea>
+  <div class="row"><button id="detect" class="primary">detect pairs</button></div>
+  <div id="confirm" hidden>
+    <p class="label">Check and fix, then add</p>
+    <table><tbody id="rows"></tbody></table>
+    <div class="row"><button id="add-btn" class="primary">add to deck</button></div>
+  </div>
+  <p id="add-msg"></p>
+</section>
+
+<section id="train" hidden>
+  <div class="row"><span id="left" class="label"></span>
+    <label style="margin-left:auto"><input type="checkbox" id="reverse"> show translation first</label></div>
+  <div id="trainer">
+    <div id="card"><div id="q"></div><div id="a"></div></div>
+    <div class="row"><button id="flip" class="primary">flip<kbd>space</kbd></button>
+      <span id="grade"><button id="again">again<kbd>1</kbd></button><button id="got">got it<kbd>2</kbd></button></span></div>
+  </div>
+  <div id="done"><p id="done-msg"></p><button id="all">practice all anyway</button></div>
+  <p class="label" style="margin-top:40px">Only cards due today · “again” brings a card back this session</p>
+</section>
+
+<section id="deck" hidden>
+  <p id="count" class="label"></p>
+  <table><tbody id="list"></tbody></table>
+  <div class="row"><button id="reset">reset progress</button><button id="clear">delete all</button></div>
+  <div class="share">
+    <p class="label">Share</p>
+    <div class="row"><button id="share" class="primary">copy share link</button><span id="share-msg" class="n"></span></div>
+    <input id="link" readonly hidden>
+    <div class="row"><input id="import-in" placeholder="Paste a share link or code"><button id="import">import</button></div>
+  </div>
+</section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const INTERVALS = [0, 1, 2, 4, 8, 16, 32]; // days per level
+const today = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 6e4) / 864e5); // local day number
+const state = JSON.parse(localStorage.flashy || '{"cards":[]}');
+const save = () => localStorage.flashy = JSON.stringify(state);
+const newCard = (front, back) => ({ front, back, level: 0, due: 0, right: 0, wrong: 0 });
+
+// Tabs
+function show(tab) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  document.querySelectorAll('section').forEach(s => s.hidden = s.id !== tab);
+  if (tab === 'train') startSession();
+  if (tab === 'deck') renderDeck();
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.tab));
+
+// Add: first separator found in a line wins, so ";" inside a translation survives and "E-Mail" isn't split
+function parse(text) {
+  return text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const sep = ['—', '–', '|', ' - ', ';'].find(s => line.includes(s));
+    if (!sep) return [line, ''];
+    const i = line.indexOf(sep);
+    return [line.slice(0, i).trim(), line.slice(i + sep.length).trim()];
+  });
+}
+
+function row(front, back) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = '<td><input><td><input><td><button title="Remove">×</button>';
+  const [f, b] = tr.querySelectorAll('input');
+  f.value = front; b.value = back;
+  tr.querySelector('button').onclick = () => { tr.remove(); $('#confirm').hidden = !$('#rows').rows.length; };
+  return tr;
+}
+
+$('#detect').onclick = () => {
+  $('#rows').replaceChildren(...parse($('#paste').value).map(p => row(...p)));
+  $('#confirm').hidden = !$('#rows').rows.length;
+  $('#add-msg').textContent = '';
+};
+
+$('#add-btn').onclick = () => {
+  const have = new Set(state.cards.map(c => c.front));
+  let added = 0, skipped = 0;
+  for (const tr of [...$('#rows').rows]) {
+    const [front, back] = [...tr.querySelectorAll('input')].map(i => i.value.trim());
+    if (!front || !back) continue; // leave incomplete rows for fixing
+    if (have.has(front)) skipped++;
+    else { have.add(front); state.cards.push(newCard(front, back)); added++; }
+    tr.remove();
+  }
+  save();
+  const left = $('#rows').rows.length;
+  $('#confirm').hidden = !left;
+  if (!left) $('#paste').value = '';
+  $('#add-msg').textContent = `Added ${added}. Skipped ${skipped} already in deck.` + (left ? ' Fill in both sides of the rows left.' : '');
+};
+
+// Train: Leitner levels 0–6
+let queue = [], cur = null, flipped = false;
+
+function startSession(all = false) {
+  queue = state.cards.filter(c => all || c.due <= today());
+  for (let i = queue.length - 1; i > 0; i--) { // shuffle
+    const j = Math.floor(Math.random() * (i + 1));
+    [queue[i], queue[j]] = [queue[j], queue[i]];
+  }
+  next();
+}
+
+function next() { cur = queue.shift(); flipped = false; render(); }
+
+function render() {
+  $('#reverse').checked = !!state.reverse;
+  $('#trainer').hidden = !cur;
+  $('#done').hidden = !!cur;
+  $('#left').textContent = cur ? `${queue.length + 1} left · level ${cur.level}` : '';
+  if (!cur) {
+    const soonest = Math.min(...state.cards.map(c => c.due)) - today();
+    $('#done-msg').textContent = !state.cards.length ? 'No cards yet. Add some first.'
+      : soonest > 0 ? `Nothing due. Next cards in ${soonest} day${soonest > 1 ? 's' : ''}.` : 'Done for now.';
+    $('#all').hidden = !state.cards.length;
+    return;
+  }
+  const [q, a] = state.reverse ? [cur.back, cur.front] : [cur.front, cur.back];
+  $('#q').textContent = q;
+  $('#a').textContent = flipped ? a : '';
+  $('#flip').hidden = flipped;
+  $('#grade').hidden = !flipped;
+}
+
+function flip() { if (cur) { flipped = !flipped; render(); } }
+
+function grade(ok) {
+  if (!cur || !flipped) return;
+  if (!ok) { cur.wrong++; cur.level = 0; cur.due = today(); queue.push(cur); }
+  else {
+    cur.right++;
+    if (cur.due <= today()) { // cards practiced early don't move up
+      cur.level = Math.min(cur.level + 1, 6);
+      cur.due = today() + INTERVALS[cur.level];
+    }
+  }
+  save(); next();
+}
+
+$('#card').onclick = $('#flip').onclick = flip;
+$('#again').onclick = () => grade(false);
+$('#got').onclick = () => grade(true);
+$('#all').onclick = () => startSession(true);
+$('#reverse').onchange = e => { state.reverse = e.target.checked; save(); render(); };
+
+document.onkeydown = e => {
+  if ($('#train').hidden || e.target.matches('textarea, input:not([type=checkbox])')) return;
+  if (e.key === ' ' || e.key === 'Enter') { if (!cur) return; e.preventDefault(); flip(); }
+  if (e.key === '1') grade(false);
+  if (e.key === '2') grade(true);
+};
+
+// Deck
+function renderDeck() {
+  $('#count').textContent = `${state.cards.length} cards`;
+  $('#list').replaceChildren(...state.cards.map(c => {
+    const tr = document.createElement('tr');
+    for (const t of [c.front, c.back]) tr.insertCell().textContent = t;
+    const days = c.due - today(), stats = tr.insertCell();
+    stats.className = 'n';
+    stats.textContent = `L${c.level} · ${days > 0 ? `in ${days}d` : 'due'} · ✓${c.right} ✗${c.wrong}`;
+    const del = tr.insertCell().appendChild(document.createElement('button'));
+    del.textContent = '×';
+    del.title = 'Delete';
+    del.onclick = () => { state.cards.splice(state.cards.indexOf(c), 1); save(); renderDeck(); };
+    return tr;
+  }));
+  pack(state.cards).then(code => $('#link').value = location.href.split('#')[0] + '#' + code);
+}
+
+$('#reset').onclick = () => {
+  if (!confirm('Reset progress for all cards?')) return;
+  state.cards = state.cards.map(c => newCard(c.front, c.back)); save(); renderDeck();
+};
+$('#clear').onclick = () => {
+  if (!confirm('Delete all cards?')) return;
+  state.cards = []; save(); renderDeck();
+};
+
+// Share: JSON → deflate-raw → base64url
+async function pack(data) {
+  const stream = new Blob([JSON.stringify(data)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  return btoa(Array.from(bytes, b => String.fromCharCode(b)).join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function unpack(code) {
+  const bytes = Uint8Array.from(atob(code.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0));
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return JSON.parse(await new Response(stream).text());
+}
+
+// Link is built ahead of the click: Safari refuses clipboard writes after an await
+$('#share').onclick = () => {
+  $('#link').hidden = false;
+  $('#link').select();
+  navigator.clipboard.writeText($('#link').value).then(
+    () => $('#share-msg').textContent = 'Copied.',
+    () => $('#share-msg').textContent = 'Copy the link below.');
+};
+
+// Shared data is untrusted: keep only well-formed cards with sane numbers
+const clean = c => ({ front: String(c.front), back: String(c.back), level: Math.min(Math.max(c.level | 0, 0), 6),
+  due: c.due | 0, right: c.right | 0, wrong: c.wrong | 0 });
+
+async function importDeck(code) {
+  let cards;
+  try { cards = (await unpack(code.trim())).filter(c => c && c.front && c.back).map(clean); }
+  catch { return alert("Couldn't read that link or code."); }
+  const have = new Set(state.cards.map(c => c.front));
+  const fresh = cards.filter(c => !have.has(c.front) && have.add(c.front)); // merge: skip fronts already in the deck
+  if (!fresh.length) return alert(`All ${cards.length} shared cards are already in your deck.`);
+  if (!confirm(`Add ${fresh.length} new cards? ${cards.length - fresh.length} duplicates will be skipped.`)) return;
+  state.cards.push(...fresh); save(); show('deck');
+}
+
+$('#import').onclick = () => importDeck($('#import-in').value.split('#').pop());
+
+function importFromHash() {
+  if (location.hash.length < 2) return;
+  const code = location.hash.slice(1);
+  history.replaceState(null, '', location.pathname + location.search); // don't re-import on reload
+  importDeck(code);
+}
+
+window.onhashchange = importFromHash; // link pasted into a tab that already has the page open
+show(state.cards.length ? 'train' : 'add');
+importFromHash();
+</script>
