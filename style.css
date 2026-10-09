@@ -1,0 +1,76 @@
+/* Paper and ink in greys only, heavy rules, no rounded corners (after tja-web). */
+:root {
+  --paper: #ececec; --paper-2: #e0e0e0; --ink: #1a1a1a; --dim: #6b6b6b; --light: #b5b5b5;
+  --hairline: rgba(0, 0, 0, .18);
+  --rule: 3px solid var(--ink); --hair: 1px solid var(--hairline);
+  --mono: ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #141414; --paper-2: #1e1e1e; --ink: #e8e8e8; --dim: #8a8a8a; --light: #4a4a4a;
+    --hairline: rgba(255, 255, 255, .16); color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--mono); font-variant-ligatures: none; accent-color: var(--ink); }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 12px 20px; border-bottom: var(--rule); }
+h1 { display: flex; align-items: center; gap: 12px; margin: 0 auto 0 0; font-size: clamp(17px, 5.2vw, 24px); white-space: nowrap; text-transform: lowercase; cursor: pointer; }
+.marks { display: flex; align-items: center; gap: 5px; }
+/* Four cards, from known to new: ink, grey, light grey, empty. */
+.marks i { width: 13px; height: 13px; border: 2px solid var(--ink); }
+.marks i:nth-child(1) { background: var(--ink); }
+.marks i:nth-child(2) { background: var(--dim); border-color: var(--dim); }
+.marks i:nth-child(3) { background: var(--light); border-color: var(--light); }
+main { max-width: 46rem; margin: 0 auto; padding: 28px 20px 60px; }
+button { font: inherit; font-size: 13px; text-transform: lowercase; color: var(--ink);
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 0; padding: 8px 16px; cursor: pointer; }
+button:hover { background: var(--ink); color: var(--paper); }
+nav { display: flex; gap: 2px; }
+nav button, .seg button { border: var(--hair); color: var(--dim); }
+nav button.on, .seg button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.seg { display: flex; gap: 2px; margin-left: auto; }
+.seg button { padding: 4px 10px; }
+/* Share of the deck learned. */
+#bar { height: 6px; border: 1px solid var(--ink); }
+#bar i { display: block; height: 100%; background: var(--ink); }
+.primary, #got { background: var(--ink); color: var(--paper); }
+.primary:hover, #got:hover { background: var(--dim); border-color: var(--dim); }
+input, textarea { font: inherit; font-size: 16px; color: var(--ink); background: var(--paper);
+  border: 2px solid var(--ink); border-radius: 0; padding: 8px 12px; width: 100%; }
+input[type=checkbox] { width: auto; }
+input:focus, textarea:focus { outline: none; border-color: var(--dim); }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+#paste { height: 14rem; resize: vertical; }
+.label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0; }
+.row > input { flex: 1; min-width: 12rem; }
+table { width: 100%; border-collapse: collapse; border-top: var(--rule); }
+td { padding: 8px 6px; border-bottom: var(--hair); vertical-align: top; overflow-wrap: anywhere; }
+/* Grow with the text where the browser can; otherwise two lines that scroll. */
+td textarea { display: block; border-width: 1px; padding: 4px 8px; font-size: 15px; resize: none; field-sizing: content; }
+td button { border: none; color: var(--dim); padding: 2px 8px; }
+td small { display: block; margin-top: 4px; }
+/* The checkbox column takes drags (to tick a run of cards) instead of scrolling or selecting text. */
+td.pick { touch-action: none; user-select: none; cursor: pointer; }
+.dragging { user-select: none; }
+tr.dup textarea { border-style: dashed; }
+/* Fixed columns, so a long unbroken word wraps in its box instead of widening the page. */
+@media (min-width: 561px) { #rows tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; } }
+.n { font-size: 12px; color: var(--dim); }
+#card { margin: 12px 0 24px; padding: 48px 24px; text-align: center; cursor: pointer;
+  background: var(--paper-2); border: var(--rule); box-shadow: 6px 6px 0 var(--ink); }
+#q { font-size: clamp(22px, 4.5vw, 34px); font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+#a:not(:empty) { margin-top: 24px; padding-top: 20px; border-top: var(--rule); font-size: 20px; }
+#grade { display: flex; gap: 10px; }
+@media (hover: none) { .keys, kbd { display: none; } } /* touch screens have no keys to press */
+#set { margin: 0 0 4px; font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
+kbd { font-family: var(--mono); font-size: 11px; opacity: .6; margin-left: 6px; }
+/* Phones: each table row stacks its text in the middle, checkbox left, × button right. */
+@media (max-width: 560px) {
+  tbody tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; border-bottom: var(--hair); }
+  tbody td { grid-column: 2; border: 0; padding: 4px 6px; }
+  tbody td.pick { grid-column: 1; grid-row: 1 / span 3; }
+  tbody td:last-child { grid-column: 3; grid-row: 1 / span 3; }
+  #card { padding: 28px 16px; }
+}
+.share { margin-top: 48px; padding-top: 16px; border-top: var(--rule); }

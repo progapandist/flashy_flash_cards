@@ -1,6 +1,6 @@
 # Flashy Flash Cards
 
-A flashcard trainer in one HTML file. No build step, no dependencies, no server: open `index.html` in a browser.
+A flashcard trainer for vocabulary. Plain HTML, CSS and JavaScript: no build step, no dependencies. It runs at https://flashy.progapanda.org.
 
 ## Use
 
@@ -12,7 +12,9 @@ die E-Mail - письмо
 nirgends | нигде
 ```
 
-Separators, in priority order: `—` `–` `|` ` - ` `;`. The first one found in a line wins, so a `;` inside the translation stays put and `E-Mail` stays whole. Click "detect pairs", fix any row that came out wrong, then add. The app skips cards whose front you already have.
+Separators, in priority order: `—` `–` `|` ` - ` `;`. The first one found in a line wins, so a `;` inside the translation stays put and `E-Mail` stays whole. Click "detect pairs" and fix any row that came out wrong. Rows whose front is already in your deck, or repeats an earlier row, show a dashed border; "add all" keeps them and "add without duplicates" drops them.
+
+The set name is optional. Cards keep it, and Train shows it above each card from that set.
 
 **Train.** You see only the cards due today. Each card has a level from 0 to 6, and the level sets how many days pass before it comes back:
 
@@ -22,18 +24,41 @@ Separators, in priority order: `—` `–` `|` ` - ` `;`. The first one found in
 
 "Got it" moves a card up one level. "Again" drops it to 0 and puts it at the end of today's session, so you keep seeing it until you get it right.
 
-When nothing is due, "practice all anyway" runs the whole deck. Early practice adds to ✓ but leaves levels and due dates as they were.
+When nothing is due, "practice all anyway" runs the whole deck. Early practice counts toward "right" but leaves levels and due dates as they were.
 
-Keys: Space or Enter flips, 1 means again, 2 means got it. "Show translation first" reverses the cards.
+Keys: Space or Enter flips, 1 means again, 2 means got it. ← takes back your last answer and shows that card again; press it more times to go further back. → skips a card to the end of the session; after you flip it, → counts as "again". "Show translation first" reverses the cards. The address bar keeps the card you're on (`?card=…`), so a reload brings you back to it.
 
-**Deck.** Lists every card with its level, due date, and ✓/✗ counts. You can delete one card, reset progress, or delete everything.
+**Deck.** Lists every card with its set, level, due date, and right/wrong counts. You can delete one card, reset progress, or delete everything.
 
 ## Sharing
 
-"Copy share link" packs the whole deck and its progress into the link, after the `#` (JSON, deflate, base64url). Opening the link adds the cards you don't have yet and skips fronts already in your deck.
+A share link carries the cards themselves, after the `#`, and your browser never sends that part to the server. Opening one adds the cards you don't have yet, then opens Train. You can also paste a link into the import field on the Deck tab.
 
-A link to a local file works only on the computer that made it. To move a deck to another laptop, send `index.html` and the link, then paste the link (or the part after `#`) into the import field on the Deck tab.
+You can make one in three places:
+
+- **A set, for a class.** On the Add tab, after "detect pairs", name the set and click "copy link to these cards". You can share them without adding them to your own deck.
+- **Some cards.** On the Deck tab, tick cards and click "copy link to N selected".
+- **The whole deck.** On the Deck tab with nothing ticked. This link also carries your progress, so it doubles as a backup.
+
+The first two send cards as new, so whoever opens the link starts from level 0.
+
+Links grow with the deck: about 1,400 characters for 20 cards, 6,000 for 100 and 49,000 for 1,000. Chrome opens links up to 2 million characters and Firefox up to 1 million, so the app warns when a link passes 1 million; paste such a link into the import field instead. Chat apps cut in much earlier (Telegram stops at 4,096 characters per message), so share big decks in smaller sets.
 
 ## Storage
 
 The deck lives in the browser's `localStorage` under the key `flashy`, one deck per browser. If you clear site data, you lose the deck. Send yourself a share link as a backup.
+
+## Develop
+
+| file | what it holds |
+|---|---|
+| `index.html` | markup |
+| `style.css` | styles |
+| `cards.js` | logic with no DOM: parser, scheduling, share codes |
+| `app.js` | wires `cards.js` to the page and `localStorage` |
+| `cards.test.js` | tests for `cards.js` |
+| `server.js` | dev server with live reload |
+
+`make dev` serves the app on port 3000 and reloads the browser on save. `make test` runs the tests. Both need Bun. The page loads ES modules, so opening `index.html` from disk won't work; use `make dev`.
+
+`make deploy` runs the tests, copies the four browser files into `dist/` and uploads them to the Cloudflare Pages project `flashy` with wrangler. `make deploy-commit` does the same, then commits everything with a timestamp and pushes.
