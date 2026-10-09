@@ -6,7 +6,8 @@ export const INTERVALS = [0, 1, 2, 4, 8, 16, 32]; // days until a card comes bac
 export const today = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 6e4) / 864e5);
 
 // `set` names the topic a card came with, e.g. a teacher's shared set. Empty for your own cards.
-export const newCard = (front, back, set = '') => ({ front, back, set, level: 0, due: 0, right: 0, wrong: 0 });
+// `seen` is when the card was last answered, in Unix seconds; 0 if never (or answered before this was kept).
+export const newCard = (front, back, set = '') => ({ front, back, set, level: 0, due: 0, right: 0, wrong: 0, seen: 0 });
 
 export const levelText = c => c.right || c.wrong ? `level ${c.level} of 6` : 'new';
 
@@ -28,7 +29,8 @@ export function parse(text) {
 
 // Leitner step. "Again" sends a card back to level 0, due today.
 // Cards practiced before they're due count the answer but don't move up.
-export function review(card, ok, day = today()) {
+export function review(card, ok, day = today(), now = Math.floor(Date.now() / 1000)) {
+  card.seen = now;
   if (!ok) { card.wrong++; card.level = 0; card.due = day; return; }
   card.right++;
   if (card.due > day) return;
@@ -44,32 +46,48 @@ export function shuffle(list) {
   return list;
 }
 
-// Cards from `incoming` whose front isn't in `deck` yet, without duplicates among themselves.
-export function newOnly(deck, incoming) {
-  const have = new Set(deck.map(c => c.front));
-  return incoming.filter(c => !have.has(c.front) && have.add(c.front));
+// What importing `incoming` into `deck` would do, without changing either:
+// `added` are cards with fronts you don't have yet (repeats within the link count once);
+// `updated` pairs one of your cards with a linked copy whose progress differs and is at least as recent;
+// `kept` counts your cards whose progress is newer than the link's. Only linked cards answered at least
+// once count, so a progress-free link never resets yours. Without times on either side, the link wins.
+const PROGRESS = ['level', 'due', 'right', 'wrong', 'seen'];
+export function planImport(deck, incoming) {
+  const yours = new Set(deck), have = new Map(deck.map(c => [c.front, c])), added = [], updated = [];
+  let kept = 0;
+  for (const c of incoming) {
+    const mine = have.get(c.front);
+    if (!mine) { have.set(c.front, c); added.push(c); continue; }
+    if (!yours.has(mine) || !(c.right || c.wrong) || PROGRESS.every(k => (mine[k] || 0) === (c[k] || 0))) continue;
+    if ((c.seen || 0) >= (mine.seen || 0)) updated.push([mine, c]);
+    else kept++;
+  }
+  return { added, updated, kept };
 }
+
+export const takeProgress = (mine, from) => PROGRESS.forEach(k => mine[k] = from[k]);
 
 // Longest link we let open directly. Chromium stops at 2 MB; Firefox's cap is 1 MB.
 // Longer links still work pasted into the import field.
 export const MAX_LINK = 1_000_000;
 
 // Share codes: deflate-raw, then base64url so the code survives in a URL hash.
-// The deck goes in as columns (fronts, backs, numbers, set names) rather than one object per card,
+// The deck goes in as columns (fronts, backs, numbers, set names, answer times) rather than one object per card,
 // and due dates count from the day of packing, so most of them are small numbers.
 export async function pack(cards, day = today()) {
   return encode(JSON.stringify([day, cards.map(c => c.front), cards.map(c => c.back),
-    cards.flatMap(c => [c.level, c.due && c.due - day, c.right, c.wrong]), cards.map(c => c.set || '')]));
+    cards.flatMap(c => [c.level, c.due && c.due - day, c.right, c.wrong]), cards.map(c => c.set || ''), cards.map(c => c.seen || 0)]));
 }
 
 // Shared data is untrusted: keep only well-formed cards with sane numbers. Throws on garbage.
 export async function unpack(code) {
-  const [day, fronts, backs, nums, sets = []] = JSON.parse(await decode(code));
+  const [day, fronts, backs, nums, sets = [], seens = []] = JSON.parse(await decode(code));
   return fronts.flatMap((front, i) => {
     const [level, due, right, wrong] = nums.slice(i * 4, i * 4 + 4);
     return front && backs[i] ? [{
       front: String(front), back: String(backs[i]), set: sets[i] ? String(sets[i]) : '', level: Math.min(Math.max(level | 0, 0), 6),
       due: due ? (day + due) | 0 : 0, right: Math.max(right | 0, 0), wrong: Math.max(wrong | 0, 0),
+      seen: Math.max(Math.floor(Number(seens[i])) || 0, 0),
     }] : [];
   });
 }

@@ -1,4 +1,4 @@
-import { newCard, levelText, dueText, parse, review, shuffle, newOnly, pack, unpack, today, MAX_LINK } from './cards.js';
+import { newCard, levelText, dueText, parse, review, shuffle, planImport, takeProgress, pack, unpack, today, MAX_LINK } from './cards.js';
 
 const $ = s => document.querySelector(s);
 const state = JSON.parse(localStorage.flashy || '{"cards":[]}');
@@ -295,13 +295,20 @@ async function importDeck(ref) {
     cards = await unpack(res ? await res.text() : ref);
   }
   catch { return alert("Couldn't read that link."); }
-  const fresh = newOnly(state.cards, cards);
-  if (!fresh.length) return alert(`All ${cards.length} shared cards are already in your deck.`);
-  const sets = [...new Set(fresh.map(c => c.set).filter(Boolean))];
-  const from = sets.length ? ` from “${sets.join('”, “')}”` : '';
-  const skipped = cards.length - fresh.length;
-  if (!confirm(`Add ${fresh.length} new cards${from}?` + (skipped ? ` ${skipped} duplicates will be skipped.` : ''))) return;
-  state.cards.push(...fresh); save(); show('train');
+  const { added, updated, kept } = planImport(state.cards, cards);
+  const count = (n, what) => `${n} ${what}${n === 1 ? '' : 's'}`;
+  const newer = kept ? ` ${count(kept, 'card')} keep${kept === 1 ? 's' : ''} your progress, which is newer.` : '';
+  if (!added.length && !updated.length)
+    return alert(`You already have all ${cards.length} cards from this link` + (cards.some(c => c.right || c.wrong) ? (newer ? '.' + newer : ', with the same progress.') : '.'));
+  const sets = [...new Set(added.map(c => c.set).filter(Boolean))];
+  const steps = [
+    added.length && `add ${count(added.length, 'new card')}` + (sets.length ? ` from “${sets.join('”, “')}”` : ''),
+    updated.length && `update progress on ${count(updated.length, 'card')} you already have`,
+  ].filter(Boolean).join(' and ');
+  if (!confirm(steps[0].toUpperCase() + steps.slice(1) + '?' + (updated.length ? " On those, the link's progress replaces yours." : '') + newer)) return;
+  state.cards.push(...added);
+  updated.forEach(([mine, from]) => takeProgress(mine, from));
+  save(); show('train');
 }
 
 $('#import').onclick = () => importDeck($('#import-in').value.split('#').pop());
