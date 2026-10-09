@@ -17,7 +17,12 @@ const server = Bun.serve({
   async fetch(req, server) {
     const url = new URL(req.url), path = url.pathname;
     if (path.startsWith("/api/")) {
-      return fetch(`http://localhost:${api}${path}${url.search}`, { method: req.method, body: req.method === "GET" ? undefined : await req.text() });
+      const res = await fetch(`http://localhost:${api}${path}${url.search}`, { method: req.method, body: req.method === "GET" ? undefined : await req.text() });
+      // fetch has already decompressed the body; passing the old encoding headers on makes browsers reject it.
+      const headers = new Headers(res.headers);
+      headers.delete("content-encoding");
+      headers.delete("content-length");
+      return new Response(res.body, { status: res.status, headers });
     }
     if (path === "/live") return server.upgrade(req) ? undefined : new Response("expected websocket", { status: 400 });
     if (path === "/" || path === "/index.html") {

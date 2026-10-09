@@ -38,9 +38,9 @@ You can make one in three places:
 
 - **A set, for a class.** On the Add tab, after "detect pairs", name the set and click "copy link to these cards". You can share them without adding them to your own deck.
 - **Some cards.** On the Deck tab, tick cards and click "copy link to N selected".
-- **The whole deck.** On the Deck tab with nothing ticked. This link also carries your progress, so it doubles as a backup.
+- **The whole deck.** On the Deck tab with nothing ticked.
 
-The first two send cards as new, so whoever opens the link starts from level 0.
+On the Deck tab, "include my progress" decides whether the link carries levels, due dates and right/wrong counts. Tick it to move your deck to another browser; leave it off when you share with someone who hasn't practiced yet, so they start from level 0. Set links from the Add tab always start fresh. An import never changes cards you already have.
 
 If the app can't reach the server, it falls back to a link that carries the cards themselves after the `#`. Those grow with the deck: about 1,400 characters for 20 cards, 6,000 for 100 and 49,000 for 1,000, too long for Telegram (4,096 characters per message) past about 65 cards. Older links in that format still open.
 

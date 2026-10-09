@@ -205,11 +205,13 @@ function renderDeck() {
   updateShare();
 }
 
-// Selected cards go out as new cards: the recipient starts fresh. The whole deck keeps progress, as a backup.
+// Ticked cards, or the whole deck. Without "include my progress" they go out as new cards.
 const shareCards = () => {
   const some = state.cards.filter(c => picked.has(c));
-  return some.length ? some.map(c => newCard(c.front, c.back, c.set)) : state.cards;
+  const cards = some.length ? some : state.cards;
+  return $('#with-progress').checked ? cards : cards.map(c => newCard(c.front, c.back, c.set));
 };
+$('#with-progress').onchange = updateShare; // clears a link made with the other setting
 
 function updateShare() {
   const some = state.cards.filter(c => picked.has(c)).length;
