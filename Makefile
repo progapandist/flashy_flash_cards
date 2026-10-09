@@ -1,13 +1,14 @@
 PROJECT ?= flashy
 
-# The files the browser needs. Tests, the dev server and docs stay out of the upload.
+# The files the browser needs. functions/ is picked up by wrangler on its own; tests and docs stay out.
 FILES := index.html style.css app.js cards.js
 
 .PHONY: dev test dist deploy deploy-commit clean
 
-# Live reload on save.
+# The app on port 3000 with live reload. Wrangler runs the deck API (functions/) and a local copy
+# of the deck storage on 8788 in the background; Ctrl-C stops both.
 dev:
-	bun run server.js
+	wrangler pages dev . --port 8788 & trap 'kill $$!' EXIT; bun run server.js
 
 test:
 	bun test

@@ -32,7 +32,7 @@ Keys: Space or Enter flips, 1 means again, 2 means got it. ← takes back your l
 
 ## Sharing
 
-A share link carries the cards themselves, after the `#`, and your browser never sends that part to the server. Opening one adds the cards you don't have yet, then opens Train. You can also paste a link into the import field on the Deck tab.
+A share link is short, like `flashy.progapanda.org/#s=ENYNKCTDKov_`, whatever the deck size. The app stores the cards on the server (Cloudflare KV) under an id made from their hash, so sharing the same cards twice gives the same link. Anyone who has a link can open those cards. Opening one adds the cards you don't have yet, then opens Train. You can also paste a link into the import field on the Deck tab.
 
 You can make one in three places:
 
@@ -42,7 +42,7 @@ You can make one in three places:
 
 The first two send cards as new, so whoever opens the link starts from level 0.
 
-Links grow with the deck: about 1,400 characters for 20 cards, 6,000 for 100 and 49,000 for 1,000. Chrome opens links up to 2 million characters and Firefox up to 1 million, so the app warns when a link passes 1 million; paste such a link into the import field instead. Chat apps cut in much earlier (Telegram stops at 4,096 characters per message), so share big decks in smaller sets.
+If the app can't reach the server, it falls back to a link that carries the cards themselves after the `#`. Those grow with the deck: about 1,400 characters for 20 cards, 6,000 for 100 and 49,000 for 1,000, too long for Telegram (4,096 characters per message) past about 65 cards. Older links in that format still open.
 
 ## Storage
 
@@ -57,8 +57,10 @@ The deck lives in the browser's `localStorage` under the key `flashy`, one deck 
 | `cards.js` | logic with no DOM: parser, scheduling, share codes |
 | `app.js` | wires `cards.js` to the page and `localStorage` |
 | `cards.test.js` | tests for `cards.js` |
-| `server.js` | dev server with live reload |
+| `functions/api/decks/` | Cloudflare Pages Functions that save and load shared decks |
+| `wrangler.toml` | Pages config: project name and the `DECKS` KV binding |
+| `server.js` | dev server with live reload; passes `/api` to wrangler |
 
-`make dev` serves the app on port 3000 and reloads the browser on save. `make test` runs the tests. Both need Bun. The page loads ES modules, so opening `index.html` from disk won't work; use `make dev`.
+`make dev` serves the app on port 3000 and reloads the browser on save. In the background it runs `wrangler pages dev` on port 8788 for the deck API, with a local copy of the deck storage in `.wrangler/`, so testing never touches the real decks. Ctrl-C stops both. `make test` runs the tests. You need Bun and wrangler. The page loads ES modules, so opening `index.html` from disk won't work; use `make dev`.
 
 `make deploy` runs the tests, copies the four browser files into `dist/` and uploads them to the Cloudflare Pages project `flashy` with wrangler. `make deploy-commit` does the same, then commits everything with a timestamp and pushes.

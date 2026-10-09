@@ -1,0 +1,9 @@
+# Cloudflare Pages config, read by `wrangler pages deploy` and `wrangler pages dev`.
+name = "flashy"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-06-01"
+
+# Shared decks behind short links. `wrangler pages dev` keeps its own local copy in .wrangler/.
+[[kv_namespaces]]
+binding = "DECKS"
+id = "c4c9aa233b7d4363ae1d4555f99b561f"

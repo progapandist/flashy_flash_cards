@@ -49,10 +49,9 @@ function checkRows() {
   $('#add-new').hidden = !dups;
   $('#set-msg').textContent = '';
   $('#set-link').hidden = true;
-  prepareLink($('#set-link'), rowCards());
 }
 $('#rows').oninput = $('#set-name').oninput = checkRows;
-$('#share-set').onclick = () => copyLink($('#set-link'), $('#set-msg'));
+$('#share-set').onclick = () => copyLink(rowCards(), $('#set-link'), $('#set-msg'));
 
 $('#detect').onclick = () => {
   $('#rows').replaceChildren(...parse($('#paste').value).map(p => row(...p)));
@@ -207,13 +206,17 @@ function renderDeck() {
 }
 
 // Selected cards go out as new cards: the recipient starts fresh. The whole deck keeps progress, as a backup.
-function updateShare() {
+const shareCards = () => {
   const some = state.cards.filter(c => picked.has(c));
-  $('#share').textContent = some.length ? `copy link to ${some.length} selected` : `copy link to all ${state.cards.length} cards`;
-  $('#unselect').hidden = !some.length;
+  return some.length ? some.map(c => newCard(c.front, c.back, c.set)) : state.cards;
+};
+
+function updateShare() {
+  const some = state.cards.filter(c => picked.has(c)).length;
+  $('#share').textContent = some ? `copy link to ${some} selected` : `copy link to all ${state.cards.length} cards`;
+  $('#unselect').hidden = !some;
   $('#link').hidden = true;
   $('#share-msg').textContent = '';
-  prepareLink($('#link'), some.length ? some.map(c => newCard(c.front, c.back, c.set)) : state.cards);
 }
 
 $('#unselect').onclick = () => { picked.clear(); renderDeck(); };
@@ -248,29 +251,47 @@ $('#clear').onclick = () => {
   state.cards = []; picked.clear(); save(); renderDeck();
 };
 
-// Share links are built ahead of the click into a hidden field: Safari refuses clipboard writes after an await.
-const packing = new WeakMap(); // field → latest request, so a slower earlier pack can't overwrite a newer link
-// The link leaves out ?card: that's only where you are in your own session.
-function prepareLink(field, cards) {
-  const n = (packing.get(field) || 0) + 1;
-  packing.set(field, n);
-  pack(cards).then(code => { if (packing.get(field) === n) field.value = location.origin + location.pathname + '#' + code; });
+// Short links: the deck goes to the server, the link carries only its id. If the server can't be
+// reached (offline, or no functions running), the deck goes into the link itself as before.
+// Links leave out ?card: that's only where you are in your own session.
+const base = () => location.origin + location.pathname;
+
+async function shortLink(code) {
+  try {
+    const res = await fetch('/api/decks', { method: 'POST', body: code });
+    if (res.ok) return base() + '#s=' + (await res.json()).id;
+  } catch {}
+  return base() + '#' + code;
 }
 
-function copyLink(field, msg) {
-  field.hidden = false;
-  field.select();
-  const tooLong = field.value.length > MAX_LINK;
-  navigator.clipboard.writeText(field.value).then(
-    () => msg.textContent = tooLong ? 'Copied. Too long to open as a link: paste it into the import field instead.' : 'Copied.',
-    () => msg.textContent = 'Copy the link below.');
+function copyLink(cards, field, msg) {
+  msg.textContent = 'Making a link…';
+  const link = pack(cards).then(shortLink);
+  // Safari only lets a click write to the clipboard if the write starts right away, so it gets the link as a promise.
+  const copied = typeof ClipboardItem === 'function'
+    ? navigator.clipboard.write([new ClipboardItem({ 'text/plain': link.then(l => new Blob([l], { type: 'text/plain' })) })])
+    : link.then(l => navigator.clipboard.writeText(l));
+  link.then(l => {
+    field.value = l;
+    field.hidden = false;
+    field.select();
+    const tooLong = l.length > MAX_LINK;
+    copied.then(
+      () => msg.textContent = tooLong ? 'Copied. Too long to open as a link: paste it into the import field instead.' : 'Copied.',
+      () => msg.textContent = 'Copy the link below.');
+  });
 }
 
-$('#share').onclick = () => copyLink($('#link'), $('#share-msg'));
+$('#share').onclick = () => copyLink(shareCards(), $('#link'), $('#share-msg'));
 
-async function importDeck(code) {
+// `ref` is what follows the # in a share link: "s=<id>" for a short link, or the deck itself.
+async function importDeck(ref) {
   let cards;
-  try { cards = await unpack(code); }
+  try {
+    const res = ref.startsWith('s=') && await fetch('/api/decks/' + encodeURIComponent(ref.slice(2)));
+    if (res && !res.ok) throw new Error(res.status);
+    cards = await unpack(res ? await res.text() : ref);
+  }
   catch { return alert("Couldn't read that link."); }
   const fresh = newOnly(state.cards, cards);
   if (!fresh.length) return alert(`All ${cards.length} shared cards are already in your deck.`);
