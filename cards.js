@@ -49,18 +49,17 @@ export function shuffle(list) {
 // What importing `incoming` into `deck` would do, without changing either:
 // `added` are cards with fronts you don't have yet (repeats within the link count once);
 // `updated` pairs one of your cards with a linked copy whose progress differs and is at least as recent;
-// `kept` counts your cards whose progress is newer than the link's. Only linked cards answered at least
+// `kept` pairs the same way where your progress is newer than the link's. Only linked cards answered at least
 // once count, so a progress-free link never resets yours. Without times on either side, the link wins.
 const PROGRESS = ['level', 'due', 'right', 'wrong', 'seen'];
 export function planImport(deck, incoming) {
-  const yours = new Set(deck), have = new Map(deck.map(c => [c.front, c])), added = [], updated = [];
-  let kept = 0;
+  const yours = new Set(deck), have = new Map(deck.map(c => [c.front, c])), added = [], updated = [], kept = [];
   for (const c of incoming) {
     const mine = have.get(c.front);
     if (!mine) { have.set(c.front, c); added.push(c); continue; }
     if (!yours.has(mine) || !(c.right || c.wrong) || PROGRESS.every(k => (mine[k] || 0) === (c[k] || 0))) continue;
     if ((c.seen || 0) >= (mine.seen || 0)) updated.push([mine, c]);
-    else kept++;
+    else kept.push([mine, c]);
   }
   return { added, updated, kept };
 }

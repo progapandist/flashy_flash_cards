@@ -21,7 +21,7 @@
     <table><tbody id="rows"></tbody></table>
     <div class="row"><input id="set-name" placeholder="Set name (optional), shown above these cards in training"></div>
     <div class="row"><button id="add-btn" class="primary">add to deck</button><button id="add-new" hidden></button></div>
-    <div class="row"><button id="share-set">copy link to these cards</button><span id="set-msg" class="n"></span></div>
+    <div class="row"><button id="share-set">copy link to these cards</button></div>
     <input id="set-link" readonly hidden>
   </div>
   <p id="add-msg"></p>
@@ -64,9 +64,11 @@
       <p class="n"><b>Open links in a real browser app</b> such as Safari, Chrome or Firefox: paste the link into its address bar.
         Don't just tap it inside Telegram, WhatsApp or another chat app. Those open it in their own built-in browser,
         which keeps a separate copy of the cards that you won't find in your normal browser.</p>
-      <p id="share-msg" class="n"></p>
       <input id="link" readonly hidden>
     </div>
   </div>
 </section>
 </main>
+
+<!-- Every question and notice. Filled and opened by ask() in app.js. -->
+<dialog id="ask"><div class="ask"><h2 id="ask-title"></h2><div id="ask-text"></div><div class="row" id="ask-buttons"></div></div></dialog>

@@ -4,6 +4,23 @@ const $ = s => document.querySelector(s);
 const state = JSON.parse(localStorage.flashy || '{"cards":[]}');
 const save = () => localStorage.flashy = JSON.stringify(state);
 
+// One in-app dialog for every question and notice. `buttons` are [label, value, class]; resolves with
+// the chosen value, or null after Esc, a backdrop click or a button whose value is null.
+function ask(title, lines, buttons = [['OK', true, 'primary']]) {
+  const dialog = $('#ask');
+  $('#ask-title').textContent = title;
+  $('#ask-text').replaceChildren(...[lines].flat().filter(Boolean).map(t => Object.assign(document.createElement('p'), { textContent: t })));
+  $('#ask-buttons').replaceChildren(...buttons.map(([label, , cls = ''], i) => {
+    const b = Object.assign(document.createElement('button'), { textContent: label, className: cls });
+    b.onclick = () => dialog.close(String(i));
+    return b;
+  }));
+  dialog.onclick = e => { if (e.target === dialog) dialog.close(); };
+  dialog.returnValue = '';
+  dialog.showModal();
+  return new Promise(resolve => dialog.onclose = () => resolve(buttons[dialog.returnValue]?.[1] ?? null));
+}
+
 // Tabs
 function show(tab) {
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
@@ -50,11 +67,10 @@ function checkRows() {
   $('#add-btn').textContent = dups ? `add all ${rows}` : 'add to deck';
   $('#add-new').textContent = `add ${rows - dups} without duplicates`;
   $('#add-new').hidden = !dups;
-  $('#set-msg').textContent = '';
   $('#set-link').hidden = true;
 }
 $('#rows').oninput = $('#set-name').oninput = checkRows;
-$('#share-set').onclick = () => copyLink(rowCards(), $('#set-link'), $('#set-msg'));
+$('#share-set').onclick = e => copyLink(rowCards(), $('#set-link'), e.currentTarget);
 
 $('#detect').onclick = () => {
   $('#rows').replaceChildren(...parse($('#paste').value).map(p => row(...p)));
@@ -190,7 +206,7 @@ $('#go-add').onclick = () => show('add');
 $('#reverse').onchange = e => { state.reverse = e.target.checked; save(); render(); };
 
 document.onkeydown = e => {
-  if ($('#train').hidden || e.target.matches('textarea, input:not([type=checkbox])')) return;
+  if ($('#ask').open || $('#train').hidden || e.target.matches('textarea, input:not([type=checkbox])')) return;
   if (e.key === 'ArrowLeft') { e.preventDefault(); back(); }
   if (e.key === 'ArrowRight') { e.preventDefault(); skip(); }
   if (e.key === ' ' || e.key === 'Enter') { if (!cur) return; e.preventDefault(); flip(); }
@@ -236,11 +252,11 @@ const shareCards = withProgress => {
 function updateShare() {
   $('#share-block').hidden = !state.cards.length; // nothing to move or share yet
   const some = picks().length, what = some ? `copy ${some} selected` : 'copy link';
+  for (const b of [$('#share-progress'), $('#share-fresh')]) { clearTimeout(b.timer); delete b.dataset.label; } // drop a pending "✓ copied"
   $('#share-progress').textContent = `${what} with my progress`;
   $('#share-fresh').textContent = `${what} without progress`;
   $('#unselect').hidden = !some;
   $('#link').hidden = true;
-  $('#share-msg').textContent = '';
 }
 
 $('#unselect').onclick = () => { picked.clear(); renderDeck(); };
@@ -266,12 +282,14 @@ document.onpointerup = document.onpointercancel = () => { dragTo = null; documen
 // A drag that ends back on its first box would otherwise toggle that box once more.
 $('#list').addEventListener('click', e => { if (dragged && e.target.matches('input')) e.preventDefault(); dragged = false; }, true);
 
-$('#reset').onclick = () => {
-  if (!confirm('Reset progress for all cards?')) return;
+$('#reset').onclick = async () => {
+  if (!await ask('Reset progress?', `All ${state.cards.length} cards go back to new. The cards themselves stay.`,
+    [['reset progress', true, 'primary'], ['cancel', null]])) return;
   state.cards = state.cards.map(c => newCard(c.front, c.back, c.set)); save(); renderDeck();
 };
-$('#clear').onclick = () => {
-  if (!confirm('Delete all cards?')) return;
+$('#clear').onclick = async () => {
+  if (!await ask('Delete all cards?', `All ${state.cards.length} cards and their progress will be gone from this browser. Links you already shared keep working.`,
+    [[`delete all ${state.cards.length} cards`, true, 'primary'], ['cancel', null]])) return;
   state.cards = []; picked.clear(); save(); renderDeck();
 };
 
@@ -288,8 +306,16 @@ async function shortLink(code) {
   return base() + '#' + code;
 }
 
-function copyLink(cards, field, msg) {
-  msg.textContent = 'Making a link…';
+// The clicked button itself says what happened, for two seconds, then shows its label again.
+function say(button, text, ms = 2000) {
+  button.dataset.label ??= button.textContent;
+  button.textContent = text;
+  clearTimeout(button.timer);
+  if (ms) button.timer = setTimeout(() => { button.textContent = button.dataset.label; delete button.dataset.label; }, ms);
+}
+
+function copyLink(cards, field, button) {
+  say(button, 'making link…', 0);
   const link = pack(cards).then(shortLink);
   // Safari only lets a click write to the clipboard if the write starts right away, so it gets the link as a promise.
   const copied = (typeof ClipboardItem === 'function'
@@ -300,12 +326,12 @@ function copyLink(cards, field, msg) {
     field.value = l;
     field.hidden = false;
     field.select();
-    msg.textContent = await copied ? 'Copied.' : 'Copy the link below.';
+    say(button, await copied ? '✓ copied' : 'copy it from the box below');
   });
 }
 
-$('#share-progress').onclick = () => copyLink(shareCards(true), $('#link'), $('#share-msg'));
-$('#share-fresh').onclick = () => copyLink(shareCards(false), $('#link'), $('#share-msg'));
+$('#share-progress').onclick = e => copyLink(shareCards(true), $('#link'), e.currentTarget);
+$('#share-fresh').onclick = e => copyLink(shareCards(false), $('#link'), e.currentTarget);
 
 // `ref` is what follows the # in a share link: "s=<id>" for a short link, or the deck itself.
 async function importDeck(ref) {
@@ -315,20 +341,26 @@ async function importDeck(ref) {
     if (res && !res.ok) throw new Error(res.status);
     cards = await unpack(res ? await res.text() : ref);
   }
-  catch { return alert("Couldn't read that link."); }
+  catch { return ask("Couldn't read that link", 'It may be cut off or mistyped. Copy it again on the other device and paste the whole link into the address bar.'); }
   const { added, updated, kept } = planImport(state.cards, cards);
   const count = (n, what) => `${n} ${what}${n === 1 ? '' : 's'}`;
-  const newer = kept ? ` ${count(kept, 'card')} keep${kept === 1 ? 's' : ''} your progress, which is newer.` : '';
-  if (!added.length && !updated.length)
-    return alert(`You already have all ${cards.length} cards from this link` + (cards.some(c => c.right || c.wrong) ? (newer ? '.' + newer : ', with the same progress.') : '.'));
   const sets = [...new Set(added.map(c => c.set).filter(Boolean))];
-  const steps = [
-    added.length && `add ${count(added.length, 'new card')}` + (sets.length ? ` from “${sets.join('”, “')}”` : ''),
-    updated.length && `update progress on ${count(updated.length, 'card')} you already have`,
-  ].filter(Boolean).join(' and ');
-  if (!confirm(steps[0].toUpperCase() + steps.slice(1) + '?' + (updated.length ? " On those, the link's progress replaces yours." : '') + newer)) return;
+  if (!added.length && !updated.length && !kept.length)
+    return ask('Nothing new', `You already have all ${count(cards.length, 'card')} from this link` + (cards.some(c => c.right || c.wrong) ? ', with the same progress.' : '.'));
+
+  const buttons = [];
+  if (added.length || updated.length) buttons.push([added.length && updated.length ? 'add and update' : added.length ? `add ${count(added.length, 'card')}` : 'update', 'merge', 'primary']);
+  if (kept.length) buttons.push([`use the link's progress for all`, 'all', buttons.length ? '' : 'primary']);
+  buttons.push(['cancel', null]);
+  const choice = await ask(sets.length ? `Add cards from “${sets.join('”, “')}”` : 'Import cards', [
+    added.length && `${count(added.length, 'new card')} will be added.`,
+    updated.length && `${count(updated.length, 'card')} you already have will take the link's progress.`,
+    kept.length && `${count(kept.length, 'card')} keep${kept.length === 1 ? 's' : ''} your progress here, because you answered ${kept.length === 1 ? 'it' : 'them'} more recently on this device. To match the link exactly, use the link's progress for all.`,
+  ], buttons);
+  if (!choice) return;
   state.cards.push(...added);
   updated.forEach(([mine, from]) => takeProgress(mine, from));
+  if (choice === 'all') kept.forEach(([mine, from]) => takeProgress(mine, from));
   save(); show('train');
 }
 

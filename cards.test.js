@@ -53,7 +53,7 @@ test('planImport: adds new fronts once, keeps whichever progress is newer, never
   const { added, updated, kept } = planImport(deck, linked);
   expect(added.map(c => c.back)).toEqual(['5']);
   expect(updated.map(([m]) => m.front)).toEqual(['a', 'u']);
-  expect(kept).toBe(1);
+  expect(kept.map(([m]) => m.front)).toEqual(['n']);
   updated.forEach(([m, from]) => takeProgress(m, from));
   expect(older).toEqual({ front: 'a', back: '1', set: '', level: 4, due: 40, right: 5, wrong: 2, seen: 200 }); // text stays mine
   expect(newer.level).toBe(0);

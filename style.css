@@ -74,4 +74,10 @@ kbd { font-family: var(--mono); font-size: 11px; opacity: .6; margin-left: 6px; 
   #card { padding: 28px 16px; }
 }
 .share .row > .n { flex-basis: 100%; margin-top: -4px; } /* each caption sits under its button */
+dialog { padding: 0; max-width: min(34rem, calc(100vw - 32px)); color: var(--ink); background: var(--paper);
+  border: var(--rule); box-shadow: 6px 6px 0 var(--ink); }
+dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.ask { padding: 20px 24px; } /* padding here, not on <dialog>, so a click on the dialog itself means the backdrop */
+.ask h2 { margin: 0 0 12px; font-size: 18px; }
+.ask p { margin: 0 0 8px; }
 .share { margin-top: 48px; padding-top: 16px; border-top: var(--rule); }
